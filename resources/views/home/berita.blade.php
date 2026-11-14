@@ -10,7 +10,7 @@
         @forelse ($homePosts as $post)
             <a href="{{ route('berita.show', $post->slug) }}" class="overflow-hidden rounded-3xl border border-black/5 bg-white">
                 @if ($post->coverUrl())
-                    <img src="{{ $post->coverUrl() }}" alt="" class="h-44 w-full object-cover">
+                    <img src="{{ $post->coverUrl() }}" alt="{{ $post->title }}" class="h-44 w-full object-cover">
                 @endif
                 <div class="p-6">
                 <p class="text-sm" style="color: var(--muted)">{{ \App\Support\LocalDate::long($post->published_on) }}</p>

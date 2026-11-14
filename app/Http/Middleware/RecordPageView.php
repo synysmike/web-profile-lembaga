@@ -105,7 +105,7 @@ class RecordPageView
             return false;
         }
 
-        return ! $request->is('admin', 'admin/*', 'login', 'logout', 'up', 'storage', 'storage/*');
+        return ! $request->is('admin', 'admin/*', 'login', 'logout', 'up', 'storage', 'storage/*', 'robots.txt', 'sitemap.xml');
     }
 
     private function tablesReady(): bool

@@ -15,9 +15,12 @@ use App\Http\Controllers\AuthController;
 use App\Http\Controllers\ContactController;
 use App\Http\Controllers\HomeController;
 use App\Http\Controllers\PublicPageController;
+use App\Http\Controllers\SeoController;
 use Illuminate\Support\Facades\Route;
 
 Route::get('/', HomeController::class)->name('home');
+Route::get('/robots.txt', [SeoController::class, 'robots'])->name('robots');
+Route::get('/sitemap.xml', [SeoController::class, 'sitemap'])->name('sitemap');
 
 Route::get('/profil/sambutan', [PublicPageController::class, 'sambutan'])->name('profil.sambutan');
 Route::get('/profil/sejarah', [PublicPageController::class, 'sejarah'])->name('profil.sejarah');

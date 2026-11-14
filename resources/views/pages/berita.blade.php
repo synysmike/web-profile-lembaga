@@ -1,6 +1,29 @@
 @extends('layouts.app')
 
 @section('title', $keyword !== '' ? 'Hasil pencarian' : 'Berita')
+@section('share_description', $keyword !== '' ? 'Hasil pencarian di '.$schoolName.'.' : 'Kabar terbaru '.$schoolName.' untuk siswa dan orang tua.')
+@section('canonical', route('berita'))
+@section('robots', $keyword !== '' ? 'noindex, follow' : 'index, follow')
+
+@php
+    $newsList = [
+        '@context' => 'https://schema.org',
+        '@type' => 'ItemList',
+        'name' => 'Berita '.$schoolName,
+        'itemListElement' => $posts->values()->map(fn ($post, $index) => [
+            '@type' => 'ListItem',
+            'position' => $index + 1,
+            'url' => route('berita.show', $post->slug),
+            'name' => $post->title,
+        ])->all(),
+    ];
+@endphp
+
+@if ($keyword === '')
+    @push('head')
+        <script type="application/ld+json">{!! json_encode($newsList, JSON_UNESCAPED_UNICODE | JSON_UNESCAPED_SLASHES | JSON_HEX_TAG | JSON_HEX_AMP) !!}</script>
+    @endpush
+@endif
 
 @section('content')
     @include('partials.page-heading', [
@@ -18,7 +41,7 @@
                 @forelse ($posts as $post)
                     <a href="{{ route('berita.show', $post->slug) }}" class="block rounded-3xl bg-white p-6">
                         @if ($post->coverUrl())
-                            <img src="{{ $post->coverUrl() }}" alt="" class="mb-4 h-44 w-full rounded-2xl object-cover">
+                            <img src="{{ $post->coverUrl() }}" alt="{{ $post->title }}" class="mb-4 h-44 w-full rounded-2xl object-cover">
                         @endif
                         <p class="text-sm" style="color: var(--muted)">{{ \App\Support\LocalDate::long($post->published_on) }}</p>
                         <h3 class="mt-2 text-2xl font-semibold">{{ $post->title }}</h3>
@@ -57,7 +80,7 @@
             @forelse ($posts as $post)
                 <a href="{{ route('berita.show', $post->slug) }}" class="block rounded-3xl bg-white p-6">
                     @if ($post->coverUrl())
-                        <img src="{{ $post->coverUrl() }}" alt="" class="mb-4 h-44 w-full rounded-2xl object-cover">
+                        <img src="{{ $post->coverUrl() }}" alt="{{ $post->title }}" class="mb-4 h-44 w-full rounded-2xl object-cover">
                     @endif
                     <p class="text-sm" style="color: var(--muted)">{{ \App\Support\LocalDate::long($post->published_on) }}</p>
                     <h2 class="mt-2 text-2xl font-semibold">{{ $post->title }}</h2>

@@ -3,11 +3,17 @@
 <head>
     <meta charset="utf-8">
     <meta name="viewport" content="width=device-width, initial-scale=1">
-    <title>@yield('title', 'Beranda') — {{ $schoolName }}</title>
     @php
-        $shareDescription = trim($__env->yieldContent('share_description'));
+        $documentTitle = trim($__env->yieldContent('document_title'));
+        if ($documentTitle === '') {
+            $documentTitle = trim($__env->yieldContent('title', 'Beranda')).' — '.$schoolName;
+        }
+        $shareDescription = trim(preg_replace('/\s+/', ' ', strip_tags($__env->yieldContent('share_description'))) ?? '');
         if ($shareDescription === '') {
             $shareDescription = $school['tagline'] !== '' ? $school['tagline'] : $schoolName;
+        }
+        if (mb_strlen($shareDescription) > 160) {
+            $shareDescription = rtrim(mb_substr($shareDescription, 0, 157)).'…';
         }
         $shareImage = trim($__env->yieldContent('share_image'));
         if ($shareImage === '') {
@@ -16,15 +22,48 @@
         if ($shareImage !== '' && ! str_starts_with($shareImage, 'http')) {
             $shareImage = url($shareImage);
         }
+        $canonical = trim($__env->yieldContent('canonical'));
+        if ($canonical === '') {
+            $canonical = url()->current();
+        }
+        $robots = trim($__env->yieldContent('robots'));
+        if ($robots === '') {
+            $robots = 'index, follow';
+        }
+        $ogType = trim($__env->yieldContent('og_type'));
+        if ($ogType === '') {
+            $ogType = 'website';
+        }
+        $publishedTime = trim($__env->yieldContent('published_time'));
+        $shareTitle = trim($__env->yieldContent('share_title'));
+        if ($shareTitle === '') {
+            $shareTitle = $documentTitle;
+        }
     @endphp
+    <title>{{ $documentTitle }}</title>
     <meta name="description" content="{{ $shareDescription }}">
-    <meta property="og:title" content="@yield('title', 'Beranda') — {{ $schoolName }}">
+    <meta name="robots" content="{{ $robots }}">
+    <link rel="canonical" href="{{ $canonical }}">
+    <meta property="og:locale" content="id_ID">
+    <meta property="og:site_name" content="{{ $schoolName }}">
+    <meta property="og:title" content="{{ $shareTitle }}">
     <meta property="og:description" content="{{ $shareDescription }}">
-    <meta property="og:type" content="website">
-    <meta property="og:url" content="{{ url()->current() }}">
+    <meta property="og:type" content="{{ $ogType }}">
+    <meta property="og:url" content="{{ $canonical }}">
+    @if ($publishedTime !== '')
+        <meta property="article:published_time" content="{{ $publishedTime }}">
+    @endif
     @if ($shareImage !== '')
         <meta property="og:image" content="{{ $shareImage }}">
+        <meta property="og:image:alt" content="{{ $shareTitle }}">
     @endif
+    <meta name="twitter:card" content="{{ $shareImage !== '' ? 'summary_large_image' : 'summary' }}">
+    <meta name="twitter:title" content="{{ $shareTitle }}">
+    <meta name="twitter:description" content="{{ $shareDescription }}">
+    @if ($shareImage !== '')
+        <meta name="twitter:image" content="{{ $shareImage }}">
+    @endif
+    @stack('head')
     @if ($school['logo'])
         <link rel="icon" href="{{ $school['logo'] }}">
     @endif
