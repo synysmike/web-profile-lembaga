@@ -2,7 +2,6 @@
 
 namespace App\Http\Controllers;
 
-use App\Models\PageView;
 use App\Models\Visit;
 use App\Models\Visitor;
 use App\Support\LocalDate;
@@ -35,50 +34,28 @@ class AdminVisitorController extends Controller
                 'label' => $day->format('j/n'),
                 'date' => $day->toDateString(),
                 'visits' => 0,
-                'views' => 0,
             ];
         }
 
         $visitCounts = Visit::query()
             ->where('visited_on', '>=', $chartStart->toDateString())
-            ->selectRaw('visited_on as day, count(*) as total')
+            ->selectRaw('visited_on as day, count(distinct visitor_id) as total')
             ->groupBy('visited_on')
-            ->get()
-            ->mapWithKeys(fn ($row) => [substr((string) $row->day, 0, 10) => (int) $row->total]);
-
-        $viewFrom = $chartStart->copy()->timezone('Asia/Jakarta')->startOfDay()->utc();
-        $viewCounts = PageView::query()
-            ->where('viewed_at', '>=', $viewFrom)
-            ->selectRaw('date(date_add(viewed_at, interval 7 hour)) as day, count(*) as total')
-            ->groupByRaw('date(date_add(viewed_at, interval 7 hour))')
             ->get()
             ->mapWithKeys(fn ($row) => [substr((string) $row->day, 0, 10) => (int) $row->total]);
 
         foreach ($chart as $index => $column) {
             $chart[$index]['visits'] = (int) ($visitCounts[$column['date']] ?? 0);
-            $chart[$index]['views'] = (int) ($viewCounts[$column['date']] ?? 0);
         }
 
-        $pageQuery = PageView::query();
-        $visitorQuery = PageView::query();
+        $visitorQuery = Visitor::query()->orderByDesc('last_seen_at');
 
         if ($start !== null) {
-            $from = Carbon::parse($start, 'Asia/Jakarta')->startOfDay()->utc();
-            $pageQuery->where('viewed_at', '>=', $from);
-            $visitorQuery->where('viewed_at', '>=', $from);
+            $visitorQuery->whereHas('visits', fn ($query) => $query->where('visited_on', '>=', $start));
         }
 
-        $pages = $pageQuery
-            ->selectRaw('path, max(title) as title, count(*) as views')
-            ->groupBy('path')
-            ->orderByDesc('views')
-            ->limit(10)
-            ->get();
-
-        $visitorIds = $visitorQuery->distinct()->pluck('visitor_id');
-        $places = Visitor::query()
-            ->whereIn('id', $visitorIds)
-            ->get()
+        $visitors = $visitorQuery->get();
+        $places = $visitors
             ->groupBy(fn (Visitor $visitor) => $visitor->placeLabel())
             ->map(fn ($group, $label) => ['label' => $label, 'total' => $group->count()])
             ->sortByDesc('total')
@@ -88,27 +65,22 @@ class AdminVisitorController extends Controller
         return view('admin.visitors', [
             'range' => $range,
             'chart' => $chart,
-            'pages' => $pages,
             'places' => $places,
+            'visitors' => $visitors,
             'counts' => [
-                'today' => Visit::query()->whereDate('visited_on', $today->toDateString())->count(),
-                'week' => Visit::query()->where('visited_on', '>=', $today->copy()->subDays(6)->toDateString())->count(),
-                'month' => Visit::query()->where('visited_on', '>=', $today->copy()->subDays(29)->toDateString())->count(),
-                'all' => Visit::query()->count(),
-            ],
-            'views' => [
-                'today' => $this->viewsSince($today->toDateString()),
-                'week' => $this->viewsSince($today->copy()->subDays(6)->toDateString()),
-                'month' => $this->viewsSince($today->copy()->subDays(29)->toDateString()),
-                'all' => PageView::query()->count(),
+                'today' => $this->ipCount($today->toDateString()),
+                'week' => $this->ipCount($today->copy()->subDays(6)->toDateString()),
+                'month' => $this->ipCount($today->copy()->subDays(29)->toDateString()),
+                'all' => Visitor::query()->count(),
             ],
         ]);
     }
 
-    private function viewsSince(string $day): int
+    private function ipCount(string $day): int
     {
-        return PageView::query()
-            ->where('viewed_at', '>=', Carbon::parse($day, 'Asia/Jakarta')->startOfDay()->utc())
-            ->count();
+        return (int) Visit::query()
+            ->where('visited_on', '>=', $day)
+            ->distinct()
+            ->count('visitor_id');
     }
 }

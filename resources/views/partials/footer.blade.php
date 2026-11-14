@@ -46,7 +46,7 @@
         </div>
     </div>
     <div class="border-t border-white/15 px-4 py-4 text-center text-sm text-white/70">
-        <p>Pengunjung hari ini {{ $visitorToday ?? 0 }} · Kunjungan {{ $visitorTotal ?? 0 }}</p>
+        <p>Pengunjung hari ini {{ $visitorToday ?? 0 }} · Total {{ $visitorTotal ?? 0 }}</p>
         <p class="mt-1">© {{ date('Y') }} {{ $school['name'] }}</p>
     </div>
 </footer>

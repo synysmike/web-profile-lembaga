@@ -2,7 +2,6 @@
 
 namespace App\Http\Middleware;
 
-use App\Models\PageView;
 use App\Models\Post;
 use App\Models\SitePage;
 use App\Models\Visit;
@@ -31,22 +30,51 @@ class RecordPageView
             $token = bin2hex(random_bytes(20));
         }
 
+        $ip = (string) $request->ip();
         $request->attributes->set('pengunjung_track', true);
         $request->attributes->set('pengunjung_token', $token);
+        $request->attributes->set('pengunjung_ip', $ip);
 
         $response = $next($request);
 
-        if ($response->isSuccessful()) {
-            $visitor = Visitor::query()->firstOrCreate(
-                ['token' => $token],
-                [
+        if ($response->isSuccessful() && $ip !== '') {
+            $path = '/'.ltrim($request->path(), '/');
+            $title = $this->title($request);
+            $visitor = Visitor::query()->where('ip', $ip)->first();
+
+            if (! $visitor) {
+                $visitor = Visitor::query()->where('token', $token)->whereNull('ip')->first();
+
+                if ($visitor) {
+                    $visitor->forceFill(['ip' => $ip])->save();
+                }
+            }
+
+            if (! $visitor) {
+                $storedToken = Visitor::query()->where('token', $token)->exists()
+                    ? bin2hex(random_bytes(20))
+                    : $token;
+
+                $visitor = Visitor::query()->create([
+                    'token' => $storedToken,
+                    'ip' => $ip,
+                    'first_path' => $path,
+                    'first_title' => $title,
                     'first_seen_at' => now(),
                     'last_seen_at' => now(),
-                ],
-            );
+                ]);
+            }
+
+            if (! filled($visitor->first_path)) {
+                $first = $visitor->pageViews()->orderBy('viewed_at')->orderBy('id')->first();
+                $visitor->forceFill([
+                    'first_path' => $first->path ?? $path,
+                    'first_title' => $first->title ?? $title,
+                ])->save();
+            }
 
             if ($visitor->location_checked_at === null) {
-                $place = GeoPlace::lookup($request->ip());
+                $place = GeoPlace::lookup($ip);
                 $visitor->forceFill([
                     'country' => $place['country'] ?? null,
                     'region' => $place['region'] ?? null,
@@ -58,13 +86,6 @@ class RecordPageView
             Visit::query()->firstOrCreate([
                 'visitor_id' => $visitor->id,
                 'visited_on' => LocalDate::today(),
-            ]);
-
-            PageView::query()->create([
-                'visitor_id' => $visitor->id,
-                'path' => '/'.ltrim($request->path(), '/'),
-                'title' => $this->title($request),
-                'viewed_at' => now(),
             ]);
 
             $visitor->forceFill(['last_seen_at' => now()])->save();

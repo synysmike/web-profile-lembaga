@@ -4,6 +4,7 @@ namespace App\Providers;
 
 use App\Models\ContactMessage;
 use App\Models\Visit;
+use App\Models\Visitor;
 use App\Support\LocalDate;
 use App\Support\SchoolProfile;
 use App\Support\SiteContent;
@@ -57,20 +58,24 @@ class AppServiceProvider extends ServiceProvider
             $total = 0;
 
             try {
-                if (Schema::hasTable('visits')) {
+                if (Schema::hasTable('visits') && Schema::hasTable('visitors')) {
                     $today = LocalDate::today();
                     $todayCount = Visit::query()->whereDate('visited_on', $today)->count();
-                    $total = Visit::query()->count();
+                    $total = Visitor::query()->count();
+                    $ip = (string) request()->attributes->get('pengunjung_ip');
 
-                    if (request()->attributes->get('pengunjung_track')) {
-                        $token = (string) request()->attributes->get('pengunjung_token');
-                        $known = Visit::query()
+                    if (request()->attributes->get('pengunjung_track') && $ip !== '') {
+                        $seenToday = Visit::query()
                             ->whereDate('visited_on', $today)
-                            ->whereHas('visitor', fn ($query) => $query->where('token', $token))
+                            ->whereHas('visitor', fn ($query) => $query->where('ip', $ip))
                             ->exists();
+                        $seenBefore = Visitor::query()->where('ip', $ip)->exists();
 
-                        if (! $known) {
+                        if (! $seenToday) {
                             $todayCount++;
+                        }
+
+                        if (! $seenBefore) {
                             $total++;
                         }
                     }
