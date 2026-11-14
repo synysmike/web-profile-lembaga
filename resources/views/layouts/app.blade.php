@@ -91,7 +91,7 @@
         .band.has-photo {
             background-image:
             
-                linear-gradient(to right, color-mix(in srgb, var(--hero) 80%, transparent), color-mix(in srgb, var(--hero) 30%, transparent)),
+                linear-gradient(to right, color-mix(in srgb, var(--hero) 80%, transparent), color-mix(in srgb, var(--hero) 50%, transparent)),
                 var(--hero-image);
             background-size: cover;
             background-position: center;
